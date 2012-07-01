@@ -37,32 +37,31 @@ Capistrano::Configuration.instance(:must_exist).load do
         desc "[internal] Generate authentification"
         task :authentification, :roles => :web, :except => { :no_release => true } do
           if exists?(:web_server_auth_credentials)
-            web_server_auth_credentials = fetch :web_server_auth_credentials
-            contents = Array.new
-            unencrypted_contents = Array.new
+            content = Array.new
+            unencrypted_content = Array.new
 
-            web_server_auth_credentials.each do |credentials|
+            fetch(:web_server_auth_credentials).each do |credentials|
               if credentials[:password].respond_to?(:call)
                 password = credentials[:password].call
               else
                 password = credentials[:password]
               end
 
-              unencrypted_contents << "#{credentials[:user]}:#{password}"
-              contents << "#{credentials[:user]}:#{password.crypt(gen_pass(8))}"
+              unencrypted_content << "#{credentials[:user]}:#{password}"
+              content << "#{credentials[:user]}:#{password.crypt(gen_pass(8))}"
             end
 
             # Write the encrypted content
-            write contents.join("\n"),
+            write content.join("\n"),
               fetch(:web_server_auth_file),
               use_sudo: true
 
             # Write the unencrypted content
-            write unencrypted_contents.join("\n"),
+            write unencrypted_content.join("\n"),
               "#{fetch :deploy_to}/.http_basic_auth"
 
             logger.info "This site uses http basic auth, the credentials are:"
-            unencrypted_contents.each do |m|
+            unencrypted_content.each do |m|
               logger.trace "username: #{m.split(':').first.chomp} password: #{m.split(':').last.chomp}"
             end
           end
@@ -79,8 +78,8 @@ Capistrano::Configuration.instance(:must_exist).load do
   end
 
   # Internal Dependencies
-  before 'deploy:server:web_server:web_configuration', 'deploy:server:web_server:folders'
-  before "deploy:server:web_server:setup", "deploy:server:web_server:configuration"
-  after  "deploy:server:web_server:setup", "deploy:server:web_server:finish"
-  after "deploy:server:web_server:configuration", "deploy:server:web_server:authentification"
+  before 'deploy:server:web_server:configuration', 'deploy:server:web_server:folders'
+  before 'deploy:server:web_server:configuration', 'deploy:server:web_server:authentification'
+  before 'deploy:server:web_server:setup', 'deploy:server:web_server:configuration'
+  after  'deploy:server:web_server:setup', 'deploy:server:web_server:finish'
 end
